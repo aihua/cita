@@ -296,7 +296,7 @@ class ChainInfo(object):
                        self.init_data_file, self.genesis_path, timestamp,
                        prevhash)
 
-    def append_node(self, node):
+    def append_node(self, node, data_path):
         # For append mode: use the first element to store the new node
         if isinstance(node, NetworkAddressList):
             node = node[0]
@@ -325,12 +325,12 @@ class ChainInfo(object):
                     jsonrpc_data['ws_config']['listen_port']) + node_id)
         with open(jsonrpc_config, 'wt') as stream:
             toml.dump(jsonrpc_data, stream)
-
+    
         with open(os.path.join(node_dir, '.env'), 'wt') as stream:
             stream.write(
                 'AMQP_URL=amqp://guest:guest@localhost/{}/{}\n'.format(
                     self.node_prefix, node_id))
-            stream.write('DATA_PATH=./data\n')
+            stream.write('DATA_PATH=' + data_path + '\n')
 
         privkey = node.get('privkey')
         if privkey:
@@ -391,7 +391,7 @@ def run_subcmd_create(args, work_dir):
     info.create_genesis(args.timestamp, args.resource_dir)
     info.encrypted_create_rootca(args.enable_tls)
     for node in args.nodes:
-        info.append_node(node)
+        info.append_node(node, args.data_path)
 
 
 def run_subcmd_append(args, work_dir):
@@ -469,6 +469,8 @@ def parse_arguments():
         action='store_true',
         help='The data is encrypted and transmitted on the network')
 
+    pcreate.add_argument('--data_path', help='path of node data')
+    
     #
     # Subcommand: append
     #
@@ -529,6 +531,8 @@ def parse_arguments():
         if not args.contract_arguments.kkv_get('NodeManager', 'stakes'):
             stakes = ','.join(['0' for _ in args.authorities])
             args.contract_arguments.kkv_set('NodeManager', 'stakes', stakes)
+        if not args.data_path:
+            args.data_path = './data'
     elif args.subcmd == SUBCMD_APPEND:
         if args.address:
             args.node.add_addresses([args.address])
